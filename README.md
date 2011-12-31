@@ -28,6 +28,10 @@ produces output something like this:
 
 <img src="http://github.com/tonyg/racket-font/raw/master/example.png" alt="Output of example.rkt"/>
 
+(The yellow and green lines and the blue rectangles are to show the
+various glyph metrics. They are not normally rendered when using
+`draw-glyph` or `draw-glyphs`.)
+
 ## Copyright and License
 
 ### The code
