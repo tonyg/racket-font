@@ -29,28 +29,31 @@
 (require "font-render.rkt")
 (require "font-directory.rkt")
 
-(define (cartoon-glyph glyph dc)
+(define (cartoon-glyph glyph size dc)
+  (define-values (sx sy) (send dc get-scale))
+  (send dc set-scale size size)
   (send dc set-brush "blue" 'solid)
   (send dc set-alpha 0.2)
   (send dc draw-rectangle
 	(glyph-horizontal-bearing-x glyph) (- (glyph-horizontal-bearing-y glyph))
 	(glyph-width glyph) (glyph-height glyph))
   (send dc set-alpha 1)
-  (send dc set-pen "yellow" 2/72 'solid)
+  (send dc set-pen "yellow" (/ 2 size) 'solid)
   (send dc draw-line -1 0 1 0)
   (send dc draw-line 0 (- -1 (glyph-height glyph)) 0 1)
-  (send dc set-pen "green" 2/72 'solid)
+  (send dc set-pen "green" (/ 2 size) 'solid)
   (send dc draw-line
 	(glyph-horizontal-advance glyph) (- -1 (glyph-height glyph))
-	(glyph-horizontal-advance glyph) 1))
+	(glyph-horizontal-advance glyph) 1)
+  (send dc set-scale sx sy))
 
-(define (cartoon-glyphs face glyphs dc)
+(define (cartoon-glyphs face glyphs size dc)
   (define advancer (make-horizontal-glyph-advancer face))
   (for-each (lambda (g)
 	      (match-define (cons kx ky) (advancer g))
-	      (send dc translate kx (- ky))
-	      (cartoon-glyph g dc)
-	      (send dc translate (- kx) ky))
+	      (send dc translate (* size kx) (* size (- ky)))
+	      (cartoon-glyph g size dc)
+	      (send dc translate (* size (- kx)) (* size ky)))
 	    glyphs))
 
 (register-faces! (read-faces-from-file "gentium-basic-regular.gz"))
@@ -71,6 +74,7 @@
 	  0))
 
 (define label-text "Racket")
+(define label-size 72)
 
 (new canvas% [parent frame]
              [paint-callback
@@ -78,11 +82,10 @@
 		(send dc set-transformation identity-transformation)
 		(send dc set-smoothing 'smoothed)
 		(send dc translate 100 200)
-                (send dc scale 72 72)
-		(cartoon-glyphs face (string->glyphs face label-text) dc)
+		(cartoon-glyphs face (string->glyphs face label-text) label-size dc)
                 (send dc set-brush "black" 'solid)
-                (send dc set-pen "black" 1/72 'transparent)
-		(draw-glyphs face (string->glyphs face label-text) dc)
+                (send dc set-pen "black" 0 'transparent)
+		(draw-glyphs face (string->glyphs face label-text) label-size dc)
 		)])
 
 (send frame show #t)
