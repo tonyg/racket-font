@@ -41,9 +41,11 @@
   (current-font-directory (set-add (current-font-directory) face)))
 
 (define (font-faces-matching family-pattern [style-pattern ""])
+  (define fp (regexp (string-append "(?i:" family-pattern ")")))
+  (define sp (regexp (string-append "(?i:" style-pattern ")")))
   (filter (lambda (f)
-	    (and (regexp-match family-pattern (font-face-family f))
-		 (regexp-match style-pattern (font-face-style f))))
+	    (and (regexp-match fp (font-face-family f))
+		 (regexp-match sp (font-face-style f))))
 	  (set->list (current-font-directory))))
 
 (define (font-face-matching family-pattern [style-pattern ""])
