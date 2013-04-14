@@ -142,11 +142,12 @@
 ;;   (send dc draw-path path)
 ;;   (send dc set-scale sx sy))
 
+;; SIDE EFFECT: alters the scale of the dc!
 (define (draw-glyphs face glyphs size dc)
   (define-values (sx sy) (send dc get-scale))
-  (send dc set-scale size size)
-  (send dc draw-path (glyphs->path face glyphs))
-  (send dc set-scale sx sy))
+  (when (not (= sx sy size))
+    (send dc set-scale size size))
+  (send dc draw-path (glyphs->path face glyphs)))
 
 ;; (define (draw-glyphs face glyphs size dc)
 ;;   (void))
