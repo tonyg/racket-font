@@ -26,28 +26,36 @@
 (require racket/draw)
 
 (require "font.rkt")
+(require "cache.rkt")
 
 (provide glyph->path
 	 draw-glyph
 	 string->glyphs
 	 glyphs->path
 	 draw-glyphs
-	 make-horizontal-glyph-advancer)
+	 make-horizontal-glyph-advancer
+	 age-font-caches!)
+
+(define GENERATIONS 5)
+
+(define GLYPH-CACHE (make-cache hasheq GENERATIONS))
 
 (define (glyph->path glyph)
-  (define path (new dc-path%))
-  (for-each (lambda (instruction)
-	      (match instruction
-		[(list 'move-to x y)
-		 (send path move-to x (- y))]
-		[(list 'line-to x y)
-		 (send path line-to x (- y))]
-		[(list 'curve-to x1 y1 x2 y2 x3 y3)
-		 (send path curve-to x1 (- y1) x2 (- y2) x3 (- y3))]
-		[(list 'close-path)
-		 (send path close)]))
-	    (glyph-path glyph))
-  path)
+  (cache-lookup/insert! GLYPH-CACHE glyph
+   (lambda ()
+     (define path (new dc-path%))
+     (for-each (lambda (instruction)
+		 (match instruction
+		   [(list 'move-to x y)
+		    (send path move-to x (- y))]
+		   [(list 'line-to x y)
+		    (send path line-to x (- y))]
+		   [(list 'curve-to x1 y1 x2 y2 x3 y3)
+		    (send path curve-to x1 (- y1) x2 (- y2) x3 (- y3))]
+		   [(list 'close-path)
+		    (send path close)]))
+	       (glyph-path glyph))
+     path)))
 
 (define (draw-glyph glyph dc)
   (send dc draw-path (glyph->path glyph)))
@@ -57,7 +65,7 @@
        (glyphs '() (cons (character->glyph face (string-ref str i)) glyphs)))
       ((< i low) glyphs)))
 
-(define (glyphs->path face glyphs)
+(define (glyphs->path* face glyphs)
   (define advancer (make-horizontal-glyph-advancer face))
   (define path (new dc-path%))
   (for-each (lambda (g)
@@ -68,6 +76,12 @@
 	      (send path close))
 	    glyphs)
   path)
+
+(define FACE-CACHE (make-cache hasheq GENERATIONS))
+(define (glyphs->path face glyphs)
+  (define glyphs-cache (cache-lookup/insert! FACE-CACHE face
+					     (lambda () (make-cache hasheq GENERATIONS))))
+  (cache-lookup/insert! glyphs-cache glyphs (lambda () (glyphs->path* face glyphs))))
 
 ;; (define cache (make-hash))
 ;; (define cache-accesses 0)
@@ -163,3 +177,15 @@
     (define rx offset)
     (set! offset (+ offset (glyph-horizontal-advance g)))
     (cons rx ky)))
+
+(define (age-font-caches!)
+  (cache-age! GLYPH-CACHE)
+  (log-info "GLYPH-CACHE occupancy: ~v" (cache-stats GLYPH-CACHE))
+  (cache-age! FACE-CACHE)
+  (log-info "FACE-CACHE occupancy: ~v" (cache-stats FACE-CACHE))
+  (for ([(face glyphs-cache) (in-cache FACE-CACHE)])
+    (cache-age! glyphs-cache)
+    (log-info "  occupancy for ~v/~v: ~v"
+	      (font-face-family face)
+	      (font-face-style face)
+	      (cache-stats glyphs-cache))))

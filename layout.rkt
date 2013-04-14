@@ -24,6 +24,7 @@
 (require racket/match)
 (require racket/list)
 (require "font.rkt")
+(require "cache.rkt")
 
 ;; TODO: kerning, both between and within StyledGlyphs.
 
@@ -116,7 +117,7 @@
 		 (if (null? rest) 0 (car rest)))
 	      rest))))
 
-(define (character->styled-glyph style c)
+(define (character->styled-glyph* style c)
   ;; TODO: Better decomposition, fallback to compatibility-decomposition etc.
   (define face (text-style-face style))
   (define (c->g ch) (character->glyph face ch))
@@ -129,6 +130,27 @@
 		   (map c->g (string->list (string-normalize-nfd (string c)))))
 		 (list g)))
   (styled-glyph style c gs))
+
+(define GENERATIONS 5)
+
+(define STYLE-CACHE (make-cache hasheq GENERATIONS))
+(define (character->styled-glyph style c)
+  (cache-lookup/insert! (cache-lookup/insert! STYLE-CACHE style
+					      (lambda () (make-cache hasheq GENERATIONS)))
+			c
+			(lambda () (character->styled-glyph* style c))))
+
+(define (age-style-cache!)
+  (cache-age! STYLE-CACHE)
+  (log-info "STYLE-CACHE occupancy: ~v" (cache-stats STYLE-CACHE))
+  (for ([(style c) (in-cache STYLE-CACHE)])
+    (cache-age! c)
+    (log-info "  occupancy for ~v/~v/~v/~v: ~v"
+	      (font-face-family (text-style-face style))
+	      (font-face-style (text-style-face style))
+	      (text-style-color style)
+	      (text-style-size style)
+	      (cache-stats c))))
 
 ;; Paragraph Number -> ListOf<ComposedRow>
 (define (compose paragraph max-width)
@@ -270,5 +292,8 @@
 	  (send dc draw-line (- width 50) 50 (- width 50) height)
 	  (send dc set-origin 50 50)
 	  (write 'composing) (newline)
-	  (time (render-composition (time (compose para (- width 100))) height dc)))])
+	  (time (render-composition (time (compose para (- width 100))) height dc))
+	  (age-style-cache!)
+	  (age-font-caches!)
+	  )])
   (send frame show #t))
