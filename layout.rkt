@@ -231,6 +231,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(require profile)
+
 (require racket/gui/base)
 (require "font-directory.rkt")
 (require "font-render.rkt")
@@ -292,6 +294,12 @@
 	  (send dc draw-line (- width 50) 50 (- width 50) height)
 	  (send dc set-origin 50 50)
 	  (write 'composing) (newline)
+	  ;; (profile-thunk
+	  ;;  (lambda ()
+	  ;;    (render-composition (compose para (- width 100)) height dc)
+	  ;;    )
+	  ;;  #:repeat 3
+	  ;;  #:delay 0.001)
 	  (time (render-composition (time (compose para (- width 100))) height dc))
 	  (age-style-cache!)
 	  (age-font-caches!)
