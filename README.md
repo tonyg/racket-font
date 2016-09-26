@@ -26,7 +26,7 @@ strings.
 `example.rkt` draws a simple string to a Racket GUI window. It
 produces output something like this:
 
-<img src="http://github.com/tonyg/racket-font/raw/master/example.png" alt="Output of example.rkt"/>
+![Output of example.rkt](example.png)
 
 (The yellow and green lines and the blue rectangles are to show the
 various glyph metrics. They are not normally rendered when using
